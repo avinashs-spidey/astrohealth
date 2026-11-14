@@ -1,0 +1,454 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ASTROHEALTH // ORBITAL BIO-HUD</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+ --bg:#040812;--bg2:#071122;--card:rgba(7,18,38,.84);--card2:rgba(10,24,48,.92);
+ --tx:#dff6ff;--mu:#7fa6c9;--ln:rgba(0,229,255,.24);--ln2:rgba(255,138,31,.35);
+ --cyan:#00e5ff;--amber:#ff8a1f;--low:#00f5a0;--moderate:#ff9f2e;--high:#ff3355;--mag:#d946ef;
+ --mono:ui-monospace,'Cascadia Mono','Consolas',monospace;
+}
+*{box-sizing:border-box}
+body{
+ margin:0;color:var(--tx);font:13.5px/1.45 system-ui,-apple-system,sans-serif;
+ background:
+  radial-gradient(ellipse 90% 45% at 12% 0%,rgba(0,229,255,.14),transparent 60%),
+  radial-gradient(ellipse 60% 40% at 88% 12%,rgba(255,138,31,.09),transparent 60%),
+  linear-gradient(rgba(0,229,255,.035) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(0,229,255,.035) 1px,transparent 1px),
+  linear-gradient(180deg,#030710 0%,#061020 55%,#030710 100%);
+ background-size:auto,auto,36px 36px,36px 36px,auto;
+ min-height:100vh;
+}
+header{
+ position:sticky;top:0;z-index:15;backdrop-filter:blur(10px);
+ display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;
+ padding:12px 20px;background:rgba(4,10,22,.88);
+ border-bottom:1px solid var(--ln);box-shadow:0 4px 24px rgba(0,229,255,.08);
+}
+h1{margin:0;font-family:var(--mono);font-size:19px;letter-spacing:4px;font-weight:400;color:#fff;text-shadow:0 0 12px rgba(0,229,255,.45)}
+h1 b{color:var(--cyan)}
+.subhud{font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--amber);display:block;margin-top:2px}
+h3{font-family:var(--mono);font-size:12px;letter-spacing:1.6px;text-transform:uppercase;color:var(--cyan);margin:0 0 10px;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+button,select,input[type=text]{
+ background:rgba(8,20,42,.9);color:var(--tx);border:1px solid var(--ln);
+ padding:6px 11px;border-radius:4px;font-family:var(--mono);font-size:12px;
+ transition:border-color .15s,box-shadow .15s,transform .1s;
+}
+button{cursor:pointer}
+button:hover{border-color:var(--cyan);box-shadow:0 0 12px rgba(0,229,255,.28)}
+button.amber{border-color:var(--ln2);color:#ffd2a6;box-shadow:inset 0 0 10px rgba(255,138,31,.12)}
+button.amber:hover{border-color:var(--amber);box-shadow:0 0 14px rgba(255,138,31,.4)}
+main{padding:16px 20px 36px;max-width:1400px;margin:auto}
+.card{
+ position:relative;background:var(--card);border:1px solid var(--ln);border-radius:6px;padding:13px;
+ box-shadow:inset 0 0 22px rgba(0,229,255,.05),0 6px 24px rgba(0,0,0,.45);
+}
+.card::before,.card::after{content:"";position:absolute;width:10px;height:10px;pointer-events:none}
+.card::before{top:-1px;left:-1px;border-top:2px solid var(--cyan);border-left:2px solid var(--cyan)}
+.card::after{bottom:-1px;right:-1px;border-bottom:2px solid var(--amber);border-right:2px solid var(--amber)}
+#crew{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-bottom:14px}
+.crew{cursor:pointer;transition:transform .12s,border-color .15s,box-shadow .15s}
+.crew:hover{transform:translateY(-1px);border-color:var(--cyan)}
+.crew.sel{border-color:var(--cyan);background:var(--card2);box-shadow:inset 0 0 26px rgba(0,229,255,.14),0 0 18px rgba(0,229,255,.22)}
+.crew.sosOn{border-color:var(--high);box-shadow:0 0 18px rgba(255,51,85,.35)}
+.crew h3{margin:0 0 2px;font-size:13.5px;color:#fff;letter-spacing:1px}
+.mu{color:var(--mu);font-size:12px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.badge{display:inline-block;padding:2px 8px;border-radius:3px;font-family:var(--mono);font-size:10.5px;color:#030812;font-weight:700;letter-spacing:.6px}
+.low,.GO,.nominal{background:var(--low)}.moderate,.CAUTION,.borderline{background:var(--amber)}.high,.NO-GO,.critical,.ACTIVE{background:var(--high);color:#fff}
+.ACKNOWLEDGED{background:var(--amber)}.RESOLVED{background:var(--low)}
+#grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(390px,1fr));gap:12px}
+.ch{height:215px}.item{border-left:2px solid var(--cyan);background:rgba(0,229,255,.035);padding:5px 9px;margin:6px 0;border-radius:0 4px 4px 0}
+.item.jump{cursor:pointer}.item.jump:hover{background:rgba(0,229,255,.12)}
+.item.critical{border-color:var(--high);background:rgba(255,51,85,.08)}
+.item.warning{border-color:var(--amber);background:rgba(255,138,31,.08)}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(390px,1fr));gap:12px;margin:12px 0}
+input[type=number]{width:68px;background:#040b18;color:var(--cyan);border:1px solid var(--ln);border-radius:4px;padding:4px 6px;font-family:var(--mono);font-size:12px}
+input[type=range]{width:200px;accent-color:var(--cyan)}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:3px;background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.25);color:var(--cyan)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+td,th{padding:5px 6px;border-bottom:1px solid rgba(0,229,255,.14);text-align:left}
+th{font-family:var(--mono);font-size:11px;color:var(--amber);text-transform:uppercase;letter-spacing:.7px}
+.modal{position:fixed;inset:0;background:rgba(2,6,14,.82);backdrop-filter:blur(5px);display:none;align-items:center;justify-content:center;z-index:30;padding:16px}
+.modal.open{display:flex}.modal .card{width:min(780px,100%);max-height:85vh;overflow:auto;background:#071326}
+.danger{border-color:rgba(255,51,85,.5);color:#ff8ea3}
+.sosBtn{background:linear-gradient(180deg,#b3122d,#78091b);border-color:#ff3355;color:#fff;font-weight:700;box-shadow:0 0 14px rgba(255,51,85,.35)}
+#sosBanner{display:none;background:linear-gradient(90deg,rgba(120,10,28,.9),rgba(32,8,20,.9));border:1px solid var(--high);border-radius:6px;padding:10px 14px;margin-bottom:14px;box-shadow:0 0 22px rgba(255,51,85,.3)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}.pulse{animation:pulse 1.2s infinite}
+#holoHero{
+ display:grid;grid-template-columns:1.1fr 1.15fr 1.25fr;gap:14px;margin-bottom:14px;align-items:center;
+ background:radial-gradient(circle at 50% 50%,rgba(0,229,255,.12),rgba(5,13,28,.92) 65%);
+}
+@media(max-width:960px){#holoHero{grid-template-columns:1fr}}
+.gauges{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.gbox{background:rgba(4,12,26,.72);border:1px solid rgba(0,229,255,.2);border-radius:6px;padding:8px;text-align:center}
+.gbox .lbl{font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--mu);text-transform:uppercase}
+.kpiGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.kpi{background:rgba(4,12,26,.72);border-left:2px solid var(--amber);padding:7px 9px;border-radius:0 4px 4px 0}
+.kpi .k{font-family:var(--mono);font-size:10px;color:var(--mu);text-transform:uppercase}
+.kpi .v{font-family:var(--mono);font-size:15px;color:var(--cyan);font-weight:600}
+.suitWrap{position:relative;text-align:center}
+.suitWrap svg{max-width:300px;width:100%;height:auto;filter:drop-shadow(0 0 10px rgba(0,229,255,.35))}
+::-webkit-scrollbar{width:7px;height:7px}::-webkit-scrollbar-track{background:#040a16}::-webkit-scrollbar-thumb{background:rgba(0,229,255,.3);border-radius:4px}
+</style></head><body>
+<header>
+ <div><h1>ASTRO<b>HEALTH</b></h1><span class="subhud">ORBITAL BIO-TELEMETRY &amp; EVA MISSION HUD</span></div>
+ <div class="row">
+  <span class="mono mu">DAY <b id="dl" style="color:var(--cyan);font-size:15px">180</b>/180</span>
+  <input type="range" id="day" min="1" max="180" value="180">
+  <button id="play" class="amber">▶ PLAY</button><button id="spd" title="Playback speed">1X</button>
+  <button id="matBtn">CREW MATRIX</button><button id="add">+ ASTRONAUT</button>
+  <button id="sosOpen" class="sosBtn">🚨 SOS</button>
+ </div>
+</header>
+
+<main>
+<div id="sosBanner"></div>
+<div id="crew"></div>
+
+<div id="detail" style="display:none">
+<div id="holoHero" class="card">
+ <div>
+  <h3>SYSTEM RADIALS <span id="heroLoc" class="chip"></span></h3>
+  <div class="gauges" id="heroGauges"></div>
+ </div>
+ <div class="suitWrap">
+  <div class="mono" style="font-size:11px;letter-spacing:1.5px;color:var(--amber);margin-bottom:2px" id="heroTitle">BIO-SUIT HOLOGRAM</div>
+  <svg id="holoSvg" viewBox="0 0 260 225" xmlns="http://www.w3.org/2000/svg"></svg>
+ </div>
+ <div>
+  <h3>LIVE SUIT &amp; TELEMETRY FEED <span id="triageBadge"></span></h3>
+  <div class="kpiGrid" id="heroKpis"></div>
+  <div id="commsBar" class="mu mono" style="margin-top:8px;font-size:11px"></div>
+ </div>
+</div>
+
+<div class="two">
+ <div class="card"><h3>AI medical assistant <span id="ab"></span></h3>
+  <div id="asst"></div>
+  <hr style="border:none;border-top:1px solid var(--ln);margin:10px 0">
+  <div class="row" style="margin-bottom:6px">
+   <button class="chip" onclick="askQ('Is the astronaut cleared for EVA?')">EVA clearance?</button>
+   <button class="chip" onclick="askQ('Where is the astronaut located and any SOS?')">Location &amp; SOS?</button>
+   <button class="chip" onclick="askQ('Why is risk at this level?')">Why this risk?</button>
+   <button class="chip" onclick="askQ('What is the radiation status and forecast?')">Radiation?</button>
+   <button class="chip" onclick="askQ('What actions are recommended?')">Actions?</button>
+  </div>
+  <div class="row"><input type="text" id="qIn" placeholder="Query flight surgeon assistant..." style="flex:1"><button id="askBtn" class="amber">ASK</button></div>
+  <div id="qOut" class="mu" style="margin-top:6px"></div>
+ </div>
+ <div class="card"><h3>EVA readiness &amp; countermeasures <span id="eb"></span></h3>
+  <div id="eva"></div>
+  <div class="mu mono" style="margin:10px 0 4px">SIMULATE INTERVENTION / EVENT FROM DAY <b id="idDay" style="color:var(--amber)">180</b>:</div>
+  <div class="row">
+   <button onclick="intervene('sleep_reset')">Sleep &amp; Light Reset</button>
+   <button onclick="intervene('exercise_boost')">Resistive Exercise</button>
+   <button onclick="intervene('storm_shelter')">Storm Shelter</button>
+   <button onclick="intervene('medical_stabilize')">Medical Stabilize</button>
+   <button class="danger" onclick="intervene('inject_solar_event')">⚡ Inject Solar Event</button>
+  </div>
+  <div id="intMsg" class="mu mono" style="margin-top:6px;color:var(--cyan)"></div>
+ </div>
+</div>
+
+<div class="two">
+ <div class="card"><h3>Space location tagging &amp; orbital tracker</h3>
+  <div id="locMap" style="margin-bottom:8px"></div>
+  <div id="locCur" class="mu" style="margin-bottom:8px"></div>
+  <div class="row" style="margin-bottom:6px">
+   <select id="locZone" style="flex:1"></select>
+   <input type="text" id="locMod" placeholder="Module / EVA site" style="width:170px">
+  </div>
+  <div class="row">
+   <label class="mu mono">Lat <input type="number" step="0.1" id="locLat"></label>
+   <label class="mu mono">Lon <input type="number" step="0.1" id="locLon"></label>
+   <label class="mu mono">Alt km <input type="number" step="1" id="locAlt"></label>
+   <button id="locSave" class="amber">Tag location</button>
+  </div>
+ </div>
+ <div class="card"><h3>SOS distress log &amp; emergency dispatch</h3>
+  <div class="row" style="margin-bottom:8px">
+   <button class="sosBtn" onclick="openSos()">🚨 Trigger SOS for selected crew</button>
+   <span class="mu">Tracks active &amp; resolved beacons</span>
+  </div>
+  <div id="sosLog" style="max-height:230px;overflow:auto"></div>
+ </div>
+</div>
+
+<div class="two">
+ <div class="card"><h3>Multi-system organ strain radar</h3><div class="ch" style="height:260px"><canvas id="c8"></canvas></div></div>
+ <div class="card"><h3>Detailed biometric telemetry &amp; limits</h3><div id="vDet" style="max-height:260px;overflow:auto"></div></div>
+</div>
+
+<div class="two">
+ <div class="card"><h3>Emergency alerts <span class="mu">(click alert to jump)</span></h3><div id="alerts" style="max-height:220px;overflow:auto"></div></div>
+ <div class="card"><h3>Flight surgeon log</h3>
+  <div class="row" style="margin-bottom:8px"><input type="text" id="noteIn" placeholder="Log clinical note for current day..." style="flex:1"><button id="noteBtn" class="amber">Save note</button></div>
+  <div id="notes" style="max-height:175px;overflow:auto"></div>
+ </div>
+</div>
+
+<div class="two">
+ <div class="card"><h3>Personal baseline monitor <span id="pb"></span></h3><div class="ch"><canvas id="c7"></canvas></div><div id="drv"></div></div>
+ <div class="card"><h3>Forecast &amp; model benchmark</h3><div id="fc"></div><p class="row"><button id="bm">Run benchmark</button><button id="ev" class="amber">Evaluate Test Dataset</button></p><div id="bmo"></div></div>
+</div>
+
+<div id="grid"></div>
+<div class="card" style="margin-top:12px"><h3>Manual health entry (replaces selected day)</h3><div id="man"></div>
+<p class="row"><button id="save" class="amber">Save entry</button><button id="rep">Open medical report</button><button id="csv">Export CSV</button><button id="resim">Re-run 180-day simulation</button><button id="del" class="danger">Remove astronaut</button></p></div>
+</div></main>
+
+<div id="addModal" class="modal"><div class="card">
+ <div class="row" style="justify-content:space-between"><h3>Add crew member</h3><button onclick="closeM('addModal')">✕</button></div>
+ <div style="display:grid;gap:8px;margin:12px 0">
+  <label class="mu">Name <input type="text" id="naName" placeholder="e.g. Dr. Elena Vance" style="width:100%"></label>
+  <label class="mu">Role <input type="text" id="naRole" value="Mission Specialist" style="width:100%"></label>
+  <label class="mu">Age <input type="number" id="naAge" value="37" min="22" max="65"></label>
+  <label class="mu">Scenario <select id="naScen" style="width:100%">
+   <option value="0">0 — Nominal baseline</option>
+   <option value="1">1 — Cardiovascular event (days 95–120)</option>
+   <option value="2">2 — Immune / infection shift (days 60–78)</option>
+   <option value="3">3 — Psychological decline (day 100+)</option>
+   <option value="4">4 — Multi-system EVA deconditioning (days 80–115)</option>
+  </select></label>
+ </div>
+ <button id="naSave" class="amber">Create &amp; Simulate 180 Days</button>
+</div></div>
+
+<div id="sosModal" class="modal"><div class="card" style="border-color:var(--high)">
+ <div class="row" style="justify-content:space-between"><h3 style="color:var(--high)">🚨 Trigger SOS Distress Beacon</h3><button onclick="closeM('sosModal')">✕</button></div>
+ <div style="display:grid;gap:8px;margin:12px 0">
+  <div class="mu">Astronaut: <b id="sosWho" style="color:#fff"></b> · Day <b id="sosDay" style="color:var(--amber)"></b></div>
+  <label class="mu">Severity <select id="sosSev" style="width:100%"><option value="MAYDAY">MAYDAY — Life / Suit Critical</option><option value="URGENT">URGENT — Medical / Hardware Assistance</option></select></label>
+  <div class="row">
+   <button class="chip" onclick="$('#sosWhy').value='Suit pressure / O2 anomaly during EVA'">Suit pressure drop</button>
+   <button class="chip" onclick="$('#sosWhy').value='Acute cardiovascular distress / tachycardia'">Cardiac distress</button>
+   <button class="chip" onclick="$('#sosWhy').value='EVA tether detachment / navigation lost'">EVA lost tether</button>
+   <button class="chip" onclick="$('#sosWhy').value='Acute solar radiation exposure'">Solar exposure</button>
+  </div>
+  <label class="mu">Reason <input type="text" id="sosWhy" value="Medical / EVA distress beacon activated" style="width:100%"></label>
+ </div>
+ <button id="sosFire" class="sosBtn">Transmit SOS Beacon Now</button>
+</div></div>
+
+<div id="matModal" class="modal"><div class="card">
+ <div class="row" style="justify-content:space-between;margin-bottom:8px"><h3>Crew comparison matrix (Day <span id="matDay">180</span>)</h3><button onclick="closeM('matModal')">✕</button></div>
+ <div id="matBody"></div>
+</div></div>
+
+<script>
+const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const api=(u,o)=>fetch('/api'+u,o).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.detail||'Request failed');return d});
+let D=180,sel=null,recs=[],charts={},timer=null,speedMs=350,crewCache=[],zonePresets={};
+const specs=[['c1','Heart rate & systolic BP',[['hr','HR'],['sys','SBP']]],['c2','Sleep, stress, fatigue, mood',[['sleep','Sleep h'],['stress','Stress'],['fatigue','Fatigue'],['mood','Mood']]],
+['c3','Bone & muscle loss (%)',[['bone_loss','Bone'],['muscle_loss','Muscle']]],['c4','Cumulative radiation (mSv)',[['cum_rad','Dose']]],
+['c5','Immune: WBC & CRP',[['wbc','WBC'],['crp','CRP']]],['c6','AI risk score (0-100)',[['risk','Risk']]]];
+const cols=['#00e5ff','#ff8a1f','#00f5a0','#ff3355'];
+const manual=['hr','sys','dia','spo2','temp','sleep','stress','fatigue','mood','bone_loss','muscle_loss','wbc','crp','rad'];
+$('#man').innerHTML=manual.map(f=>`<label class="mu mono">${f} <input type="number" step="0.1" id="m_${f}"></label>`).join(' ');
+$('#grid').innerHTML=specs.map(s=>`<div class="card"><h3>${s[1]}</h3><div class="ch"><canvas id="${s[0]}"></canvas></div></div>`).join('');
+const openM=id=>$('#'+id).classList.add('open'),closeM=id=>$('#'+id).classList.remove('open');
+
+function ringSvg(pct,col,lbl,txt){
+ const r=24,c=2*Math.PI*r,off=c*(1-Math.max(0,Math.min(100,pct))/100);
+ return `<div class="gbox"><svg width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="${r}" fill="none" stroke="rgba(0,229,255,.12)" stroke-width="5"/>
+  <circle cx="32" cy="32" r="${r}" fill="none" stroke="${col}" stroke-width="5" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" stroke-linecap="round" transform="rotate(-90 32 32)"/>
+  <text x="32" y="36" text-anchor="middle" fill="#fff" font-family="monospace" font-size="12" font-weight="700">${esc(txt)}</text></svg><div class="lbl">${esc(lbl)}</div></div>`;
+}
+
+function renderHolo(a,r,rd,vd){
+ if(!a||!r)return;
+ const loc=vd.location,radPct=Math.min(100,Math.round((r.cum_rad/180)*100));
+ const rCol=r.risk_label==='high'?'#ff3355':r.risk_label==='moderate'?'#ff8a1f':'#00f5a0';
+ const eCol=rd.status==='NO-GO'?'#ff3355':rd.status==='CAUTION'?'#ff8a1f':'#00f5a0';
+ const suitCol=a.active_sos?'#ff3355':rCol;
+ $('#heroTitle').textContent=`${a.name.toUpperCase()} // ${a.role.toUpperCase()}`;
+ $('#heroLoc').textContent=`${loc.zone.split('—')[0].trim()} · ${loc.module}`;
+ $('#heroGauges').innerHTML=
+  ringSvg(rd.score,eCol,'EVA Ready',rd.score+'%')+
+  ringSvg(r.risk,rCol,'Risk Index',r.risk)+
+  ringSvg(radPct,radPct>=80?'#ff3355':radPct>=50?'#ff8a1f':'#00e5ff','Dose Budget',radPct+'%')+
+  ringSvg(r.spo2,'#d946ef','Blood SpO₂',r.spo2+'%');
+ $('#heroKpis').innerHTML=`
+  <div class="kpi"><div class="k">Heart Rate / SBP</div><div class="v">${r.hr} bpm · ${r.sys}/${r.dia}</div></div>
+  <div class="kpi"><div class="k">Core Temp / WBC</div><div class="v">${r.temp}°C · ${r.wbc} K/µL</div></div>
+  <div class="kpi"><div class="k">Sleep / Stress</div><div class="v">${r.sleep}h · ${r.stress}/10</div></div>
+  <div class="kpi"><div class="k">Suit / Cabin O₂</div><div class="v">${loc.suit_kpa} kPa · ${loc.o2_pct}% O₂</div></div>`;
+ const heartCol=r.hr>100||r.sys>140?'#ff3355':'#ff8a1f',neuroCol=r.sleep<5.5||r.stress>7?'#ff3355':'#00e5ff';
+ $('#holoSvg').innerHTML=`
+  <defs><linearGradient id="hg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#00e5ff" stop-opacity=".28"/><stop offset="100%" stop-color="#00e5ff" stop-opacity=".02"/></linearGradient></defs>
+  <line x1="10" y1="205" x2="250" y2="205" stroke="rgba(0,229,255,.35)" stroke-width="1"/>
+  <path d="M25 205 L50 185 L210 185 L235 205" fill="none" stroke="rgba(0,229,255,.25)" stroke-width="1"/>
+  <circle cx="130" cy="108" r="88" fill="none" stroke="rgba(0,229,255,.16)" stroke-dasharray="6 4"/>
+  <circle cx="130" cy="108" r="72" fill="none" stroke="${suitCol}" stroke-opacity=".45" stroke-dasharray="28 12" stroke-width="2"/>
+  <circle cx="42" cy="64" r="18" fill="none" stroke="#d946ef" stroke-width="2.5" stroke-dasharray="70 40"/>
+  <text x="42" y="67" text-anchor="middle" fill="#dff6ff" font-family="monospace" font-size="8">NEURO</text>
+  <circle cx="42" cy="138" r="18" fill="none" stroke="#ff8a1f" stroke-width="2.5" stroke-dasharray="65 45"/>
+  <text x="42" y="141" text-anchor="middle" fill="#dff6ff" font-family="monospace" font-size="8">SUIT</text>
+  <rect x="86" y="96" width="88" height="72" rx="14" fill="url(#hg)" stroke="#00e5ff" stroke-width="1.3" opacity=".7"/>
+  <path d="M84 195 L88 128 Q90 105 112 100 L148 100 Q170 105 172 128 L176 195" fill="url(#hg)" stroke="#00e5ff" stroke-width="1.8"/>
+  <path d="M100 120 L160 120 L155 162 L105 162 Z" fill="rgba(0,229,255,.08)" stroke="#00e5ff" stroke-width="1.2"/>
+  <circle cx="130" cy="64" r="34" fill="rgba(4,16,36,.75)" stroke="#00e5ff" stroke-width="2"/>
+  <ellipse cx="133" cy="64" rx="23" ry="20" fill="rgba(0,229,255,.08)" stroke="#ff8a1f" stroke-width="1.6"/>
+  <path d="M116 58 Q134 50 148 60 M120 72 Q134 78 146 68" fill="none" stroke="${neuroCol}" stroke-width="1.2" opacity=".85"/>
+  <circle cx="130" cy="62" r="3.5" fill="${neuroCol}"/><line x1="60" y1="64" x2="127" y2="62" stroke="${neuroCol}" stroke-dasharray="2 2"/>
+  <circle cx="136" cy="135" r="4.5" fill="${heartCol}"/><line x1="140" y1="135" x2="205" y2="115" stroke="${heartCol}" stroke-dasharray="2 2"/>
+  <text x="208" y="114" fill="${heartCol}" font-family="monospace" font-size="9">HR ${r.hr}</text>
+  <circle cx="112" cy="152" r="3.5" fill="#00f5a0"/><line x1="60" y1="138" x2="109" y2="152" stroke="#00f5a0" stroke-dasharray="2 2"/>
+  <text x="208" y="142" fill="#00e5ff" font-family="monospace" font-size="9">RAD ${r.cum_rad}</text>`;
+}
+
+async function loadCrew(){
+ const c=await api('/mission?day='+D);crewCache=c;
+ if(!sel&&c.length)sel=c[0].id;
+ if(sel&&!c.some(x=>x.id===sel))sel=c[0]?.id||null;
+ $('#crew').innerHTML=c.map(a=>{const r=a.latest||{},rd=a.readiness,loc=a.location,sos=a.active_sos;
+  return `<div class="card crew ${a.id==sel?'sel':''} ${sos?'sosOn':''}" onclick="pick(${a.id})">
+  <div class="row" style="justify-content:space-between"><h3>${esc(a.name)}</h3>${sos?'<span class="badge ACTIVE pulse">SOS</span>':''}</div>
+  <div class="mu">${esc(a.role)}</div>
+  <div class="mu mono" style="margin:4px 0;color:var(--cyan)">📍 ${esc(loc?.zone?.split('—')[0]?.trim()||'Orbital')} · ${esc(loc?.module||'-')}</div>
+  <p class="row"><span class="badge ${r.risk_label}">${(r.risk_label||'-').toUpperCase()}</span><span class="mono">risk ${r.risk??'-'}</span>${rd?`<span class="badge ${rd.status}">EVA ${rd.status}</span>`:''}${r.anomaly?'<span>⚠</span>':''}${a.baseline_flag?'<span class="chip">DRIFT</span>':''}</p>
+  <div class="mu mono">HR ${r.hr??'-'} · SpO₂ ${r.spo2??'-'}% · ${r.cum_rad??'-'} mSv · ${a.alerts} alerts</div></div>`}).join('');
+}
+
+async function loadSos(){
+ const all=await api('/sos'),active=all.filter(x=>x.status==='ACTIVE');
+ const b=$('#sosBanner');
+ if(active.length){
+  b.style.display='block';
+  b.innerHTML=active.map(s=>`<div class="row" style="justify-content:space-between;margin:3px 0">
+   <div><span class="badge ACTIVE pulse">${esc(s.severity)}</span> <b>${esc(s.astronaut_name)}</b> (Day ${s.day}) · 📍 ${esc(s.location_tag)} [${s.lat}, ${s.lon}, ${s.alt_km} km]<br><span class="mu mono">${esc(s.reason)} · ${esc(s.vitals_snapshot)}</span></div>
+   <div class="row"><button onclick="jumpCrewDay(${s.astronaut_id},${s.day})">Inspect</button><button onclick="respSos(${s.id},'ACKNOWLEDGED')">Acknowledge</button><button class="amber" onclick="respSos(${s.id},'RESOLVED')">Resolve</button></div>
+  </div>`).join('');
+ }else b.style.display='none';
+ $('#sosLog').innerHTML=all.length?all.map(s=>`<div class="item ${s.status==='ACTIVE'?'critical':s.status==='ACKNOWLEDGED'?'warning':''}">
+  <div class="row" style="justify-content:space-between"><div><span class="badge ${s.status}">${s.status}</span> <b>${esc(s.astronaut_name)}</b> · Day ${s.day}</div>
+  <div class="row">${s.status==='ACTIVE'?`<button class="chip" onclick="respSos(${s.id},'ACKNOWLEDGED')">Ack</button>`:''}${s.status!=='RESOLVED'?`<button class="chip" onclick="respSos(${s.id},'RESOLVED')">Resolve</button>`:''}</div></div>
+  <div class="mu mono">📍 ${esc(s.location_tag)} (${s.lat}, ${s.lon})</div>
+  <div>${esc(s.reason)}</div><div class="mu mono">${esc(s.vitals_snapshot)}${s.resolution_note?' · Response: '+esc(s.resolution_note):''}</div>
+ </div>`).join(''):'<span class="mu">No SOS distress events recorded.</span>';
+}
+
+async function renderLocations(){
+ const data=await api('/mission/locations?day='+D);zonePresets=data.zones;
+ const selZ=$('#locZone');
+ if(!selZ.options.length){selZ.innerHTML=Object.keys(zonePresets).map(z=>`<option value="${esc(z)}">${esc(z)}</option>`).join('');}
+ const cur=data.crew.find(c=>c.id===sel);
+ if(cur){
+  if(document.activeElement!==selZ)selZ.value=cur.zone;
+  if(document.activeElement!==$('#locMod'))$('#locMod').value=cur.module;
+  if(document.activeElement!==$('#locLat'))$('#locLat').value=cur.lat;
+  if(document.activeElement!==$('#locLon'))$('#locLon').value=cur.lon;
+  if(document.activeElement!==$('#locAlt'))$('#locAlt').value=cur.alt_km;
+  $('#locCur').innerHTML=`📍 <b style="color:var(--cyan)">${esc(cur.zone)}</b> · ${esc(cur.module)} ${cur.tagged?'<span class="chip">TAGGED</span>':'<span class="chip">AUTO TRACK</span>'}<br><span class="mono">Coords (${cur.lat}°, ${cur.lon}°) · Alt ${cur.alt_km} km · ${cur.suit_kpa} kPa · O₂ ${cur.o2_pct}% · Delay <b style="color:var(--amber)">${cur.comms_delay_s}s</b></span>`;
+ }
+ const W=420,H=130,pts=data.crew.map(c=>{const x=20+((c.lon+180)/360)*(W-40),y=15+((90-c.lat)/180)*(H-30);
+  const col=c.active_sos?'#ff3355':(c.id===sel?'#00e5ff':'#00f5a0');
+  return `${c.active_sos?`<circle cx="${x}" cy="${y}" r="11" fill="none" stroke="#ff3355" stroke-width="1.5" opacity="0.85"/>`:''}<circle cx="${x}" cy="${y}" r="4.5" fill="${col}" onclick="pick(${c.id})" style="cursor:pointer"/><text x="${x+7}" y="${y+3}" fill="#dff6ff" font-family="monospace" font-size="9">${esc(c.name.split(' ').slice(-1)[0])}</text>`;
+ }).join('');
+ $('#locMap').innerHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:130px;background:radial-gradient(circle at 50% 110%,rgba(0,229,255,.16),#030916 70%);border:1px solid var(--ln);border-radius:6px">
+  <line x1="0" y1="${H/2}" x2="${W}" y2="${H/2}" stroke="rgba(0,229,255,.2)" stroke-dasharray="3,3"/><line x1="${W/2}" y1="0" x2="${W/2}" y2="${H}" stroke="rgba(0,229,255,.2)" stroke-dasharray="3,3"/>
+  <path d="M10 ${H*.72} Q ${W*.25} ${H*.14}, ${W*.5} ${H*.5} T ${W-10} ${H*.28}" fill="none" stroke="rgba(255,138,31,.35)" stroke-width="1.2"/>
+  ${pts}<text x="8" y="13" fill="#00e5ff" font-family="monospace" font-size="9">ORBITAL / SURFACE TRACKING GRID · DAY ${D}</text></svg>`;
+}
+
+async function pick(id){sel=id;recs=await api(`/astronauts/${id}/records`);Object.values(charts).forEach(c=>c.destroy());charts={};$('#qOut').textContent='';$('#intMsg').textContent='';$('#detail').style.display='';refresh();}
+function jumpCrewDay(aid,day){D=day;$('#day').value=D;$('#dl').textContent=D;if(sel!==aid)pick(aid);else refresh();}
+function draw(){const d=recs.filter(r=>r.day<=D),lab=d.map(r=>r.day);
+ specs.forEach(([id,,ds])=>{const data=ds.map(([k,n],i)=>({label:n,data:d.map(r=>r[k]),borderColor:cols[i],backgroundColor:cols[i]+'22',pointRadius:0,borderWidth:1.8,tension:.25}));
+  if(charts[id]){charts[id].data.labels=lab;charts[id].data.datasets.forEach((s,i)=>s.data=data[i].data);charts[id].update('none')}
+  else charts[id]=new Chart($('#'+id),{type:'line',data:{labels:lab,datasets:data},options:{animation:false,maintainAspectRatio:false,scales:{x:{max:180,grid:{color:'rgba(0,229,255,.07)'},ticks:{color:'#7fa6c9'}},y:{grid:{color:'rgba(0,229,255,.07)'},ticks:{color:'#7fa6c9'}}},plugins:{legend:{labels:{color:'#dff6ff',boxWidth:10}}}}});});
+ const r=d[d.length-1];if(r)manual.forEach(f=>{const e=$('#m_'+f);if(document.activeElement!==e)e.value=r[f]});}
+
+async function refresh(){
+ $('#idDay').textContent=D;await loadCrew();await loadSos();if(!sel)return;draw();insights();renderLocations();
+ const [a,al,rd,nt,vd]=await Promise.all([
+  api(`/astronauts/${sel}/assistant?day=${D}`),
+  api(`/alerts?astronaut_id=${sel}&day=${D}`),
+  api(`/astronauts/${sel}/readiness?day=${D}`),
+  api(`/astronauts/${sel}/notes`),
+  api(`/astronauts/${sel}/vitals_detail?day=${D}`)
+ ]);
+ const curA=crewCache.find(x=>x.id===sel),curR=recs.filter(x=>x.day<=D).slice(-1)[0];
+ renderHolo(curA,curR,rd,vd);
+ $('#ab').innerHTML=`<span class="badge ${a.risk_label}">${a.risk_label.toUpperCase()}</span>`;
+ $('#triageBadge').innerHTML=`<span class="chip">${esc(vd.triage)}</span>`;
+ $('#commsBar').textContent=`📡 ${vd.comms_mode} (One-way delay: ${vd.location.comms_delay_s}s)`;
+ $('#asst').innerHTML=`<p>${esc(a.summary)}</p>`+a.findings.map(f=>`<div class="item"><b>${esc(f.system)}</b>: ${esc(f.observation)}<br><span class="mu">Action: ${esc(f.action)}</span></div>`).join('')+
+  a.trends.map(t=>`<div class="mu">• ${esc(t)}</div>`).join('')+`<p class="mu">${esc(a.disclaimer)}</p>`;
+ $('#eb').innerHTML=`<span class="badge ${rd.status}">${rd.status} · ${rd.score}/100</span>`;
+ $('#eva').innerHTML=`<div class="mu mono" style="margin-bottom:6px">Remaining mission dose margin: <b style="color:var(--cyan)">${rd.eva_dose_margin_msv} mSv</b></div>`+
+  rd.checks.map(c=>`<div class="item ${c.status==='NO-GO'?'critical':c.status==='CAUTION'?'warning':''}"><b>${esc(c.domain)}</b> <span class="badge ${c.status}">${c.status}</span><div class="mu">${esc(c.detail)}</div></div>`).join('');
+ $('#alerts').innerHTML=al.length?al.map(x=>`<div class="item jump ${x.level}" onclick="jumpDay(${x.day})"><b class="mono">DAY ${x.day}</b> · ${esc(x.message)}</div>`).join(''):'<span class="mu">No alerts so far.</span>';
+ $('#notes').innerHTML=nt.length?nt.map(n=>`<div class="item"><b class="mono">DAY ${n.day}</b> · <span class="mu">${esc(n.author)}</span><br>${esc(n.note)}</div>`).join(''):'<span class="mu">No flight surgeon notes recorded.</span>';
+ $('#vDet').innerHTML=`<table><tr><th>Biomarker</th><th>Value</th><th>Ref</th><th>Δ Base</th><th>Status</th></tr>`+
+  vd.items.map(x=>`<tr><td>${esc(x.label)}</td><td class="mono"><b>${x.value}</b> <span class="mu">${esc(x.unit)}</span></td><td class="mu mono">${x.range}</td><td class="mono">${x.delta_vs_base>=0?'+':''}${x.delta_vs_base}</td><td><span class="badge ${x.status}">${x.status}</span></td></tr>`).join('')+'</table>';
+ if(charts.c8){charts.c8.data.datasets[0].data=vd.radar.values;charts.c8.update('none')}
+ else charts.c8=new Chart($('#c8'),{type:'radar',data:{labels:vd.radar.labels,datasets:[{label:'System strain (0-100)',data:vd.radar.values,borderColor:'#00e5ff',backgroundColor:'rgba(0,229,255,.18)',pointBackgroundColor:'#ff8a1f',pointBorderColor:'#00e5ff'}]},options:{animation:false,maintainAspectRatio:false,scales:{r:{min:0,max:100,ticks:{display:false},grid:{color:'rgba(0,229,255,.16)'},angleLines:{color:'rgba(0,229,255,.16)'},pointLabels:{color:'#dff6ff',font:{size:11}}}},plugins:{legend:{labels:{color:'#7fa6c9'}}}}});
+}
+
+function jumpDay(day){D=day;$('#day').value=D;$('#dl').textContent=D;refresh();}
+let deb;$('#day').oninput=e=>{D=+e.target.value;$('#dl').textContent=D;clearTimeout(deb);deb=setTimeout(refresh,60)};
+function startPlay(){timer=setInterval(()=>{D++;$('#day').value=D;$('#dl').textContent=D;refresh();if(D>=180){clearInterval(timer);timer=null;$('#play').textContent='▶ PLAY'}},speedMs);}
+$('#play').onclick=()=>{if(timer){clearInterval(timer);timer=null;$('#play').textContent='▶ PLAY';return}if(D>=180){D=1}$('#play').textContent='⏸ PAUSE';startPlay();};
+$('#spd').onclick=()=>{speedMs=speedMs===350?120:350;$('#spd').textContent=speedMs===350?'1X':'3X';if(timer){clearInterval(timer);startPlay();}};
+
+$('#locZone').onchange=()=>{const p=zonePresets[$('#locZone').value];if(p){$('#locMod').value=p.module;$('#locAlt').value=p.alt_km;}};
+$('#locSave').onclick=async()=>{if(!sel)return;
+ await api(`/astronauts/${sel}/location`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({day:D,zone:$('#locZone').value,module:$('#locMod').value,lat:+$('#locLat').value,lon:+$('#locLon').value,alt_km:+$('#locAlt').value})});
+ refresh();};
+
+function openSos(){const a=crewCache.find(x=>x.id===sel);if(!a)return;$('#sosWho').textContent=a.name;$('#sosDay').textContent=D;openM('sosModal');}
+$('#sosOpen').onclick=openSos;
+$('#sosFire').onclick=async()=>{if(!sel)return;
+ await api(`/astronauts/${sel}/sos`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({day:D,severity:$('#sosSev').value,reason:$('#sosWhy').value})});
+ closeM('sosModal');refresh();};
+async function respSos(id,status){const note=status==='RESOLVED'?(prompt('Resolution note (optional)','Crew stabilized & cleared')??''):'Mission Control acknowledged beacon';
+ await api(`/sos/${id}/respond`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status,resolution_note:note})});refresh();}
+
+$('#add').onclick=()=>openM('addModal');
+$('#naSave').onclick=async()=>{const name=$('#naName').value.trim();if(!name)return;
+ const a=await api('/astronauts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,role:$('#naRole').value.trim()||'Mission Specialist',age:+$('#naAge').value||38,scenario:+$('#naScen').value||0})});
+ $('#naName').value='';closeM('addModal');await pick(a.id);};
+
+$('#matBtn').onclick=()=>{
+ $('#matDay').textContent=D;
+ $('#matBody').innerHTML=`<table><tr><th>Astronaut</th><th>Location</th><th>Risk</th><th>EVA</th><th>SOS</th><th>HR</th><th>SpO₂</th><th>Dose</th></tr>`+
+  crewCache.map(a=>{const r=a.latest||{},rd=a.readiness||{},loc=a.location||{};return `<tr style="cursor:pointer" onclick="closeM('matModal');pick(${a.id})"><td><b>${esc(a.name)}</b></td><td class="mu">${esc(loc.module||'-')}</td><td><span class="badge ${r.risk_label}">${r.risk??'-'}</span></td><td><span class="badge ${rd.status}">${rd.status||'-'}</span></td><td>${a.active_sos?'<span class="badge ACTIVE">SOS</span>':'-'}</td><td class="mono">${r.hr??'-'}</td><td class="mono">${r.spo2??'-'}%</td><td class="mono">${r.cum_rad??'-'}</td></tr>`}).join('')+'</table>';
+ openM('matModal');
+};
+
+async function askQ(preset){const q=preset||$('#qIn').value.trim();if(!q||!sel)return;$('#qIn').value=q;
+ const res=await api(`/astronauts/${sel}/ask`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q,day:D})});
+ $('#qOut').innerHTML=`<div class="item"><b class="mono">DAY ${res.day}:</b> ${esc(res.answer)}</div>`;}
+$('#askBtn').onclick=()=>askQ();$('#qIn').onkeydown=e=>{if(e.key==='Enter')askQ()};
+
+async function intervene(kind){if(!sel)return;
+ const res=await api(`/astronauts/${sel}/intervene`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind,day:D,duration:14})});
+ $('#intMsg').textContent=`APPLIED ${res.applied.replace(/_/g,' ').toUpperCase()} (DAYS ${res.from_day}–${res.to_day})`;
+ recs=await api(`/astronauts/${sel}/records`);refresh();}
+
+$('#noteBtn').onclick=async()=>{const note=$('#noteIn').value.trim();if(!note||!sel)return;
+ await api(`/astronauts/${sel}/notes`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({day:D,note})});
+ $('#noteIn').value='';refresh();};
+
+$('#save').onclick=async()=>{const b={day:D};manual.forEach(f=>b[f]=+$('#m_'+f).value);
+ await api(`/astronauts/${sel}/records`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});recs=await api(`/astronauts/${sel}/records`);refresh()};
+$('#rep').onclick=()=>window.open(`/api/astronauts/${sel}/report?day=${D}`);
+$('#csv').onclick=()=>window.open(`/api/astronauts/${sel}/export.csv?day=${D}`);
+$('#resim').onclick=async()=>{await api('/simulate/'+sel,{method:'POST'});pick(sel)};
+$('#del').onclick=async()=>{if(!sel)return;try{await api('/astronauts/'+sel,{method:'DELETE'});sel=null;await loadCrew();if(sel)await pick(sel);}catch(e){alert(e.message);}};
+
+async function insights(){const i=await api(`/astronauts/${sel}/insights?day=${D}`);if(!i.ready){$('#pb').innerHTML='<span class="chip">WARMING UP (&lt;15d)</span>';$('#drv').innerHTML='<div class="mu mono">Personalized baseline requires at least 15 days.</div>';$('#fc').innerHTML='';return;}
+ $('#pb').innerHTML=`<span class="badge ${i.flag?'high':'low'}">${i.flag?'DEVIATING':'ON BASELINE'}</span>`;
+ const lab=i.series.map(p=>p.day),sc=i.series.map(p=>p.score),th=lab.map(()=>i.threshold);
+ if(charts.c7){charts.c7.data.labels=lab;charts.c7.data.datasets[0].data=sc;charts.c7.data.datasets[1].data=th;charts.c7.update('none')}
+ else charts.c7=new Chart($('#c7'),{type:'line',data:{labels:lab,datasets:[{label:'Deviation from own baseline (rms z)',data:sc,borderColor:'#00e5ff',pointRadius:0,borderWidth:1.8},{label:'Threshold',data:th,borderColor:'#ff3355',pointRadius:0,borderDash:[4,4],borderWidth:1.2}]},options:{animation:false,maintainAspectRatio:false,scales:{x:{max:180,grid:{color:'rgba(0,229,255,.07)'},ticks:{color:'#7fa6c9'}},y:{grid:{color:'rgba(0,229,255,.07)'},ticks:{color:'#7fa6c9'}}},plugins:{legend:{labels:{color:'#dff6ff',boxWidth:10}}}}});
+ $('#drv').innerHTML='<div class="mu mono">Top drivers vs. own baseline: '+i.drivers.map(d=>`${d.feature} (${d.z>0?'+':''}${d.z}σ)`).join(', ')+'</div>';
+ $('#fc').innerHTML='<table><tr><th>Metric</th><th>Now</th><th>Trend/d</th><th>Limit</th><th>ETA to limit</th></tr>'+i.forecast.map(f=>`<tr><td>${f.feature}</td><td class="mono">${f.current}</td><td class="mono">${f.slope}</td><td class="mono">${f.threshold}</td><td class="mono">${f.days_to_threshold===0?'<b style="color:var(--high)">breached</b>':f.days_to_threshold===null?'stable':f.days_to_threshold+' d'+(f.breach_before_mission_end?' ⚠':'')}</td></tr>`).join('')+'</table>';}
+$('#bm').onclick=async()=>{const b=await api('/benchmark');$('#bmo').innerHTML='<table><tr><th>Model</th><th>Precision</th><th>Recall</th><th>F1</th></tr>'+Object.entries(b.summary).map(([k,v])=>`<tr><td>${k}</td><td class="mono">${v.precision}</td><td class="mono">${v.recall}</td><td class="mono">${v.f1}</td></tr>`).join('')+`</table><p class="mu">${b.note}</p>`};
+$('#ev').onclick=async()=>{const e=await api('/model/eval');$('#bmo').innerHTML=`<div class="mu mono" style="margin-bottom:6px">Train: <b>${e.train_source}</b> (${e.train_rows}) · Test: <b>${e.test_source}</b> (${e.test_rows})<br>Accuracy: <b style="color:var(--cyan)">${(e.accuracy*100).toFixed(1)}%</b> · Macro F1: <b style="color:var(--amber)">${e.macro_f1}</b> · Extreme anomaly recall: ${e.extreme_anomaly_recall??'-'}</div><table><tr><th>Class</th><th>Precision</th><th>Recall</th><th>F1</th><th>Support</th></tr>`+Object.entries(e.per_class).map(([k,v])=>`<tr><td>${k}</td><td class="mono">${v.precision}</td><td class="mono">${v.recall}</td><td class="mono">${v.f1}</td><td class="mono">${v.support}</td></tr>`).join('')+'</table>';};
+loadCrew().then(()=>pick(sel));
+</script></body></html>

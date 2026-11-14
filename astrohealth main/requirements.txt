@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+sqlalchemy<2.1
+scikit-learn
+numpy
+# for PostgreSQL: pip install psycopg2-binary, then set DATABASE_URL=postgresql://user:pass@localhost/astrohealth
